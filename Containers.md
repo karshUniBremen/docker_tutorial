@@ -219,7 +219,7 @@ It must be noted that no two containers can use same port from host computer. As
 
 By default docker provide virtual network name "bridge" or "docker 0"
 
-![Screenshot 2020-12-30 23:55:22](/home/karsh/projects/LearningRepo/docker_tutorial/docker_network.png)
+![Screenshot 2020-12-30 23:55:22](./docker_network.png)
 
 
 
