@@ -104,7 +104,7 @@ To build a image we need "Dockerfile" (this name is fixed).
 docker build .
 ```
 
-:octopus: To build docker image from other directory. i.e. Dockerfile is not present in current directory where it is built, but in other path on host PC.
+:octopus: To build docker image from files other than Dockerfile
 
 ```bash
 docker build -f <path-to-Dockerfile> .
