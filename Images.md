@@ -281,4 +281,3 @@ docker image prune -a
 docker system df
 ```
 
-## 
