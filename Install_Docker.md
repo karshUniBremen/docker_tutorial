@@ -47,5 +47,20 @@ There two distribution version CE and EE.
 
 - For **zsh** feature refer this link  https://www.bretfisher.com/shell/
 
+### Login and Logout docker
 
+:octopus: login into docker
+
+```bash
+docker login
+```
+
+- docker login stores authentication key in profile of the user
+- If we log out this stored authentication file is deleted
+
+:octopus: logout docker
+
+```bash
+docker logout
+```
 

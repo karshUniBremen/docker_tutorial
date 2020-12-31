@@ -1,4 +1,4 @@
-# Containers
+# Containers & Network
 
 ## Image Vs Container
 
@@ -211,7 +211,7 @@ docker container exec -it <container-name> bash
 
 
 
-Docker allows creation of multiple virtual network within a host. Docker container communicates to outside world using  host computer ports through the NAT firewall. Also two virtual network can talk to each other using the same. Thus option -p is required here.
+Docker allows creation of multiple virtual network within a host. Docker container communicates to outside world using  host computer ports through the NAT firewall. Also two virtual network can talk to each other using the same. Thus option -p is required. 
 
 On other hand, containers within the same networks can talk to each other, without the need of sending the traffic to host computers NAT Firewall interface. Thus option -p is not required here.
 
@@ -221,9 +221,8 @@ By default docker provide virtual network name "bridge" or "docker 0"
 
 ![Screenshot 2020-12-30 23:55:22](./docker_network.png)
 
-
-
-
+- All externally exposed ports closed by default
+- We must manually expose ports via -p, which is better default security
 
 
 
@@ -251,9 +250,68 @@ docker container port <container-name>
 docker container inspect --format '{{ .NetworkSettings.IPAddress }}' <container-name>
 ```
 
+:octopus: List all the network
 
+```bash
+docker network ls
+```
 
+- Docker uses default network driver called 'bridge'. We can change network driver with any third party driver as well. A network driver is
+- when we do **network ls** we see 2 types of drivers 
+  -  **--network bridge** : This is default docker provided network driver. By default name of the virtual network is also "bridge" (which uses bridge driver) which is NAT'ed behind the host IP. "bridge" network comes with default security.
+  - **--network host** : This is special network driver, that skips virtual network of docker to gain performance, but sacrifices security of the container model.
+  - **--network none**: This mean no network driver. This removes etho and only leaves with localhost interface in container​
 
+:octopus: Creating a network with default "bridge" network driver
+
+```bash
+docker network create <name-of-network>
+```
+
+:octopus: Creating a network with other driver than default "bridge" network driver
+
+```bash
+docker network create <name-of-network> --driver <driver-name>
+```
+
+:octopus:  Creating a network while creating container
+
+```bash
+docker container run -d --name <container-name> --network <network-name> <image-name>
+```
+
+:octopus: Connecting a container to already existing network
+
+```bash
+docker network connect <network-id> <container-id>
+```
+
+- We can connect container to multiple network, just like we can connect with ethernet and wifi.
+
+:octopus: Disconnecting a container
+
+```bash
+docker network disconnect <network-id> <container-id>
+```
+
+### Docker DNS
+
+My default within a virtual network containers can talk to each other using respective container-name. So docker by default provide DNS resolution within the network. The rationale for using container name, is we might not how long container will be live, or what IP they might have (based on order of their start). But on other hand container name won't change.
+
+There is one disadvantage of default "bridge" network, that DNS server is not built by default. Thus we have to link using --link option manually. Instead of this we can create new network, which will have DNS server built for resolving.
+
+:bell: Nutshell
+
+Never rely on IP's for inter-communication, instead use container-names
+
+By default "bridge" network don't have DNS server built in and need to manually link other communication for inter-communication using --link option. On other hand, newly created network will have DNS server for DNS resolution, and hence good idea to create new network and use it.
+
+#### What's the difference between --net-alias and --link
+
+There are two differences between `--net-alias` and `--link`:
+
+1. With `--net-alias`, one container can access the other container only if they are on the same network. In other words, in addition to `--net-alias foo` and `--net-alias bar`, you need to start both containers with `--net foobar_net` after creating the network with `docker network create foobar_net`.
+2. With `--net-alias foo`, **all** containers in the same network can reach the container by using its alias `foo`. With `--link`, **only the linked container** can reach the container by using the name `foo`.
 
 ## Reference 
 
@@ -277,7 +335,9 @@ New way
 docker <command> <sub-command> (options)
 ```
 
-## Exercise
+## Assignment-1
+
+#### Run containers
 
 1. Run a nginx, a mysql, a httpd (apache) server
 2. Run all of them --detach, name them with --name
@@ -287,7 +347,7 @@ docker <command> <sub-command> (options)
 6. Clean it all with docker container stop and docker container rm (both can accept multiple names and ID's)
 7. Use docker container ls to ensure everything is correct before and after cleanup
 
-## Solution
+#### Solution-1
 
 - nginx should listen on 80:80, httpd on 8080:80, mysql on 3306:3306
 - when sunning mysql, use the --env option(-e) to pass in MYSQL_RANDOM_ROOT_PASSWORD=yes
@@ -312,7 +372,91 @@ docker container rm ce3 53b f8d
 docker ps -a
 ```
 
+## Assignment-2 
 
+#### CLI-APP Testing
 
+1. Use different Linux distro containers to check curl cli tool version
 
+2. Use two different terminal windows to start bash in both centos:7 and ubuntu:14.04, using -it
+
+3. Learn the docker container --rm option so we can save cleanup
+
+4. Ensure curl is installed and on latest version for that distro
+
+   - Ubuntu: apt-get update && apt-get install curl
+
+   - centos: yum update curl
+
+5. Check curl --version
+
+#### Solution-2
+
+Use two different terminal windows to start bash in both centos:7 and ubuntu:14.04, using -it and dowload curl and check version
+
+```bash
+docker container run -d --rm --name ubuntu ubuntu
+docker container run -d --rm --name centos centos
+```
+
+- **--rm** option help to removes container when exists. 
+
+```bash
+docker container stop <ubuntu-container-id> 
+docker container stop <centos-container-id>
+```
+
+```bash
+docker container run -it centos bash
+
+# centos terminal opens
+yum install curl
+
+curl --version
+```
+
+```bash
+docker container run -it ubuntu bash
+
+# ubuntu terminal opens
+apt update
+apt-get install curl
+
+curl -version
+```
+
+## Assignment-3 
+
+#### DNS Round Robin test
+
+DNA Round robin is a stratergy where muliplt IP addresses can be associated with same DNS name.
+
+- Create a new virtual network (default bridge driver)
+- Create two containers (elasticsearch server) from elasticsearch:2 image  
+- Research and use --network-alias search when creating them to give them an additional DNS name to respond to
+- Run alpine nslookup search with --net to see the two containers list for the same DNS name
+- Run centos curl -s serach:9200 with --net multiple times until you see both "name" fields show
+
+Solution-3
+
+```bash
+# create a new virtual network
+docker network create kar
+
+# create elasticsearch server on container 1 of alpine image with network alias search
+
+docker container run -d --net kar --network-alias search elasticsearch:2
+
+# create elasticsearch server on container 2 of alpine image with network alias search
+docker container run -d --net kar --network-alias search elasticsearch:2
+
+# check if both container are there
+docker container ls
+
+# run a test using 3rd container to check ip address of the container 1 and 2
+docker container run --rm --net kar alpine nslookup search
+
+# now using centos container curl for elasticsearch server over the network. Here any one of the server must respond.
+docker container run --rm --net kar centos curl -s search:9200
+```
 
