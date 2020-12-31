@@ -253,3 +253,32 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 && ln -sf /dev/stderr /var/log/nginx/error.log
 ```
 
+##### Image Prune
+
+Use "prune" commands to clean up images, volumes, build cache, and containers
+
+:octopus:  To clean up just "dangling" images
+
+```bash
+docker image prune
+```
+
+:octopus: This will clean up all images from system
+
+```bash
+docker system prune
+```
+
+:octopus: This will remove all image which we are not using
+
+```bash
+docker image prune -a
+```
+
+:octopus: To view disk space
+
+```bash
+docker system df
+```
+
+## 

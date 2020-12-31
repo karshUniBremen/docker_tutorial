@@ -638,7 +638,33 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 && ln -sf /dev/stderr /var/log/nginx/error.log
 ```
 
+##### Image Prune
 
+Use "prune" commands to clean up images, volumes, build cache, and containers
+
+:octopus:  To clean up just "dangling" images
+
+```bash
+docker image prune
+```
+
+:octopus: This will clean up all images from system
+
+```bash
+docker system prune
+```
+
+:octopus: This will remove all image which we are not using
+
+```bash
+docker image prune -a
+```
+
+:octopus: To view disk space
+
+```bash
+docker system df
+```
 
 ## Reference 
 
@@ -785,5 +811,41 @@ docker container run --rm --net kar alpine nslookup search
 
 # now using centos container curl for elasticsearch server over the network. Here any one of the server must respond.
 docker container run --rm --net kar centos curl -s search:9200
+```
+
+## Assignment-4
+
+Take a existing Node.js app and Dockerize it, build it, Test it, Run it.
+
+Following are the instruction to follow
+
+- Use the 'node' official image, with the alpine 3.x branch
+- this app listens on port 3000, but the container should launch on port 80 so it will respond to http://localhost:80 on your computer  
+- then it should use alpine package manager to install tini: 'apk add --update tini'
+- then it should create directory /usr/src/app for app files with 'mkdir -p /usr/src/app'
+- Node uses a "package manager", so it needs to copy in package.json file
+- then it needs to run 'npm install' to install dependencies from that file
+- to keep it clean and small, run 'npm cache clean --force' after above
+- then it needs to copy in all files from current directory
+- then it needs to start container with command '/sbin/tini -- node ./bin/www'
+- in the end you should be using FROM, RUN, WORKDIR, COPY, EXPOSE, and CMD commands
+
+Solution-4
+
+```dockerfile
+FROM node:6-alpine
+
+RUN apk add --update tini 
+
+WORKDIR /usr/src/app
+
+COPY . .
+
+RUN npm install \
+    && npm cache clean --force
+    
+EXPOSE 3000
+    
+CMD [ "/sbin/tini", "--", "node", "./bin/www" ]
 ```
 
