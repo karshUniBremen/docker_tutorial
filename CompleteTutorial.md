@@ -66,9 +66,9 @@ docker logout
 
 
 
-# Containers & Network
+## Containers & Network
 
-## Image Vs Container
+### Image Vs Container
 
 - An **Image** is the ***application*** we want to run
 
@@ -137,7 +137,25 @@ docker container run -p 80:80 --detach nginx
 docker container run --publish 80:80 --detach --name <unique name of your choice> nginx
 ```
 
+***
 
+:bell:  
+
+There two version commands old way and new way is using management commands. Both are valid as docker keeps backward compatibility.
+
+Old way:
+
+```bash
+docker <command> (options)
+```
+
+New way
+
+```bash
+docker <command> <sub-command> (options)
+```
+
+****
 
 ### List all containers, view logs, list processes running with-in a container
 
@@ -383,7 +401,7 @@ There are two differences between `--net-alias` and `--link`:
 
 
 
-# Images
+## Images
 
 ### What's in an image (and what Isn't)
 
@@ -666,9 +684,9 @@ docker image prune -a
 docker system df
 ```
 
-#  Container lifetime and persistent data
+##  Container lifetime and persistent data
 
-## Persistent data handling
+### Persistent data handling
 
 Containers are usually immutable  that means, only re-deploy containers, never change. Then what about unique or persistent data (like databases) ?
 
@@ -727,31 +745,343 @@ Maps a host file or directory to a container file or directory. Basically just t
 docker container run -d --name <container-name> -v <host-file-dir-location>:<container-file-dir-location> <image name>
 ```
 
+
+
+## Docker Compose
+
+Docker compose is a CLI tool that uses YAML-formatted file describing
+
+- Containers
+- networks
+- volumes
+
+allowing to configure relationships between containers, and saving docker container run settings in easy-to-read file. Thus providing one-liner developer environment startups.
+
+Let's talk about docker compose yaml file
+
+- compose yaml format has it's own versions: 1,2,2.1,3,,3.1
+
+- YAML file can be used with docker-compose command for local docker automation.
+
+- By default docker-compose CLI command will look for filename "docker-compose.yml", but if we are using different filename then we need to add option -f  .
+
+  ```bash
+  docker-compose -f <docker-file-name=docker-compose.yml>
+  ```
+
+##### Template for docker-compose file
+
+```yaml
+version: '3.1'  # if no version is specified then v1 is assumed. Recommend v2 minimum
+
+services:  # containers. same as docker run
+  servicename: # a friendly name. this is also DNS name inside network
+    image: # Optional if you use build:
+    command: # Optional, replace the default CMD specified by the image
+    environment: # Optional, same as -e in docker run
+    volumes: # Optional, same as -v in docker run
+  servicename2:
+
+volumes: # Optional, same as docker volume create
+
+networks: # Optional, same as docker network create
+
+```
+
+### docker-compose CLI 
+
+- docker-compose in Linux need to be downloaded separately
+- docker-compose is not production-grade tool but ideal for local development and test
+- docker-compose automatically create network even without manually specifying
+
+Two step on-boarding process for the project
+
+- git clone <git-repo-url>
+- docker-compose -f <docker-filename> up
+
+*******
+
+:bell: 
+
+ **port** in **docker-compose**  and **EXPOSE**  in **Dockerfile** are not same. **EXPOSE** does not publish the port, but **port** publishes the port
+
+****
+
+### Example for docker-compose files
+
+##### Example-1
+
+- jekyll docker-compose file
+
+```yaml
+version: '3'
+
+# same as 
+# docker run -p 80:4000 -v $(pwd):/site bretfisher/jekyll-serve
+
+services:
+  jekyll:
+    image: bretfisher/jekyll-serve
+    volumes:
+      - .:/site
+    ports:
+      - '80:4000'
+
+```
+
+##### Example-2
+
+- Wordpress setup
+
+```yaml
+version: '3'
+
+services:
+
+  wordpress:
+    image: wordpress
+    ports:
+      - 8080:80
+    environment:
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: example
+      WORDPRESS_DB_PASSWORD: examplePW
+    volumes:
+      - ./wordpress-data:/var/www/html
+
+  mysql:
+    image: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: examplerootPW
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: example
+      MYSQL_PASSWORD: examplePW
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:
+```
+
+##### 	Example-3
+
+- 3 database Cluster behind ghost server
+
+```yaml
+version: '3'
+
+services:
+  ghost:
+    image: ghost
+    ports:
+      - "80:2368"
+    environment:
+      - URL=http://localhost
+      - NODE_ENV=production
+      - MYSQL_HOST=mysql-primary
+      - MYSQL_PASSWORD=mypass
+      - MYSQL_DATABASE=ghost
+    volumes:
+      - ./config.js:/var/lib/ghost/config.js
+    depends_on:
+      - mysql-primary
+      - mysql-secondary
+  proxysql:
+    image: percona/proxysql
+    environment: 
+      - CLUSTER_NAME=mycluster
+      - CLUSTER_JOIN=mysql-primary,mysql-secondary
+      - MYSQL_ROOT_PASSWORD=mypass
+   
+      - MYSQL_PROXY_USER=proxyuser
+      - MYSQL_PROXY_PASSWORD=s3cret
+  mysql-primary:
+    image: percona/percona-xtradb-cluster:5.7
+    environment: 
+      - CLUSTER_NAME=mycluster
+      - MYSQL_ROOT_PASSWORD=mypass
+      - MYSQL_DATABASE=ghost
+      - MYSQL_PROXY_USER=proxyuser
+      - MYSQL_PROXY_PASSWORD=s3cret
+  mysql-secondary:
+    image: percona/percona-xtradb-cluster:5.7
+    environment: 
+      - CLUSTER_NAME=mycluster
+      - MYSQL_ROOT_PASSWORD=mypass
+   
+      - CLUSTER_JOIN=mysql-primary
+      - MYSQL_PROXY_USER=proxyuser
+      - MYSQL_PROXY_PASSWORD=s3cret
+    depends_on:
+      - mysql-primary
+```
+
+
+
+##### Example-4  
+
+- Influxdb, mosquitto, telegraph, grafana, mongo stack
+
+```yaml
+version: "3"
+
+services:
+    influxdb:
+        image: influxdb
+        container_name: influxdb
+        env_file: prototype.env
+        ports: 
+            - "8086:8086"
+        volumes: 
+            - ./influxdb:/var/lib/influxdb
+        networks: 
+            - "iotstack"
+
+    mosquitto:
+        image: eclipse-mosquitto
+        container_name: mosquitto
+        volumes: 
+            - ./mosquitto/config/:/mosquitto/config/
+            - ./mosquitto/log:/mosquitto/log
+            - ./mosquitto/data:/mosquitto/data
+        user: "1000:1000"
+        ports:
+            - "1887:1883"
+        networks: 
+            - "iotstack"
+    
+    telegraf:
+        image: telegraf
+        container_name: telegraf
+        env_file: prototype.env
+        volumes: 
+            - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+        networks: 
+            - "iotstack"
+
+
+    grafana:
+        image: grafana/grafana
+        container_name: grafana
+        ports: 
+            - "3005:3000"
+        env_file: prototype.env
+        volumes: 
+            - ./grafana/data:/var/lib/grafana
+        networks: 
+            - "iotstack"
+                                           
+
+    mongo:
+        image: mongo
+        container_name: mongo
+        env_file: prototype.env
+        ports: 
+            - "27017:27017"
+        volumes: 
+            - ./mongo/data/db:/data/db
+        networks: 
+            - "iotstack"
+                  
+                  
+volumes: 
+    influxdb:
+    grafana:
+
+networks: 
+    iotstack:
+```
+
+##### Example-5
+
+- Adding image to compose file
+
+```yaml
+version: '3'
+
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: nginx.Dockerfile
+    ports:
+      - '80:80'
+  web:
+    image: httpd
+    volumes:
+      - ./html:/usr/local/apache2/htdocs/
+```
+
+:octopus: Build and up the containers in single command
+
+```
+docker-compose up --build 
+```
+
+:octopus: Build and up the containers separately
+
+```bash
+# build the image
+docker-compose build
+
+#up the containers
+docker-compose up
+```
+
+
+
+##### Example-8
+
+- Adding image to compose file
+
+```yaml
+version: '2'
+# NOTE: move this answer file up a directory so it'll work
+
+services:
+
+  drupal:
+    image: custom-drupal
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - drupal-modules:/var/www/html/modules
+      - drupal-profiles:/var/www/html/profiles       
+      - drupal-sites:/var/www/html/sites      
+      - drupal-themes:/var/www/html/themes
+ 
+  postgres:
+    image: postgres:12.1
+    environment:
+      - POSTGRES_PASSWORD=mypasswd
+    volumes:
+      - drupal-data:/var/lib/postgresql/data
+
+volumes:
+  drupal-data:
+  drupal-modules:
+  drupal-profiles:
+  drupal-sites:
+  drupal-themes:
+```
+
+```bash
+docker-compose up --build
+```
+
 ## Reference 
 
 :bell:  doc.docker.com and --help 
 
-## Good to knows
+## Assignments
 
-:bell:  Some note on Commands
+### Assignment-1
 
-There two version commands old way and new way is using management commands. Both are valid as docker keeps backward compatibility.
-
-Old way:
-
-```bash
-docker <command> (options)
-```
-
-New way
-
-```bash
-docker <command> <sub-command> (options)
-```
-
-## Assignment-1
-
-#### Run containers
+##### Run containers
 
 1. Run a nginx, a mysql, a httpd (apache) server
 2. Run all of them --detach, name them with --name
@@ -761,7 +1091,7 @@ docker <command> <sub-command> (options)
 6. Clean it all with docker container stop and docker container rm (both can accept multiple names and ID's)
 7. Use docker container ls to ensure everything is correct before and after cleanup
 
-#### Solution-1
+##### Solution
 
 - nginx should listen on 80:80, httpd on 8080:80, mysql on 3306:3306
 - when sunning mysql, use the --env option(-e) to pass in MYSQL_RANDOM_ROOT_PASSWORD=yes
@@ -786,9 +1116,9 @@ docker container rm ce3 53b f8d
 docker ps -a
 ```
 
-## Assignment-2 
+### Assignment-2 
 
-#### CLI-APP Testing
+##### CLI-APP Testing
 
 1. Use different Linux distro containers to check curl cli tool version
 
@@ -804,7 +1134,7 @@ docker ps -a
 
 5. Check curl --version
 
-#### Solution-2
+##### Solution
 
 Use two different terminal windows to start bash in both centos:7 and ubuntu:14.04, using -it and dowload curl and check version
 
@@ -839,9 +1169,9 @@ apt-get install curl
 curl -version
 ```
 
-## Assignment-3 
+### Assignment-3 
 
-#### DNS Round Robin test
+##### DNS Round Robin test
 
 DNA Round robin is a stratergy where muliplt IP addresses can be associated with same DNS name.
 
@@ -851,7 +1181,7 @@ DNA Round robin is a stratergy where muliplt IP addresses can be associated with
 - Run alpine nslookup search with --net to see the two containers list for the same DNS name
 - Run centos curl -s serach:9200 with --net multiple times until you see both "name" fields show
 
-Solution-3
+##### Solution
 
 ```bash
 # create a new virtual network
@@ -874,7 +1204,9 @@ docker container run --rm --net kar alpine nslookup search
 docker container run --rm --net kar centos curl -s search:9200
 ```
 
-## Assignment-4
+### Assignment-4
+
+##### Node.js
 
 Take a existing Node.js app and Dockerize it, build it, Test it, Run it.
 
@@ -891,7 +1223,7 @@ Following are the instruction to follow
 - then it needs to start container with command '/sbin/tini -- node ./bin/www'
 - in the end you should be using FROM, RUN, WORKDIR, COPY, EXPOSE, and CMD commands
 
-Solution-4
+##### Solution
 
 ```dockerfile
 FROM node:6-alpine
@@ -912,16 +1244,16 @@ CMD [ "/sbin/tini", "--", "node", "./bin/www" ]
 
 Reference folder : dockerfile-assignment-4
 
-## Assignment- 5
+### Assignment- 5
 
-#### Named Volumes
+##### Named Volumes
 
 - Create a *postgres* container with named volume *psql-data* using version *9.6.1*
 - Check logs, stop container
 - Create a new *postgres* container with *same named volume* using *9.6.2*
 - check logs to validate
 
-Solution 
+##### Solution 
 
 ```bash
 docker container run -d --name pg1 -v psql-data:/var/lib/postgresql/data postgres:9.6.1
@@ -941,9 +1273,9 @@ docker container logs pg2
 
 ```
 
-## Assignment-6
+### Assignment-6
 
-#### Bind Mounts
+##### Bind Mounts
 
 ​		Use Jekyll "Static Site Generator" to start a local web server
 
@@ -952,8 +1284,48 @@ docker container logs pg2
 - **bind <current-site-folder>** to **/site** folder in container
 - Modify the "_posts/2020-07-21-welcome-to-jekyll" in the site directory of host page and see the changes in web browser open on port 80.
 
+##### solution
+
 ```bash
 docker container run --name static_site_gen -p 80:4000 -v $(pwd):/site bretfisher/jekyll-serve
 ```
 
 Reference folder : bindmount-sample-1
+
+### Assignment-7
+
+##### docker-composeDrupal
+
+Build a basic compose file for a Drupal content management system for website.
+
+- Use the **drupal** image along with the **postgres** image 
+- Use ports to expose 8080 of drupal to port 80 of host
+- Use volumes to store Drupal unique data
+
+##### Solution
+
+```yaml
+version: '3'
+
+services:
+  drupal:
+    image: drupal:8.8.2
+    ports:
+      - "8080:80"
+    volumes: # this is bind mount
+      - drupal-modules:/var/www/html/modules
+      - drupal-profiles:/var/www/html/profiles       
+      - drupal-sites:/var/www/html/sites      
+      - drupal-themes:/var/www/html/themes
+  postgres:
+    image: postgres:12.1
+    environment:
+      - POSTGRES_PASSWORD=mypasswd
+
+volumes: # creating volumes
+  drupal-modules:
+  drupal-profiles:
+  drupal-sites:
+  drupal-themes:
+```
+
